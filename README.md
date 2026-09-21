@@ -1,5 +1,10 @@
 # ENACO Retail
 
+![Tests](https://github.com/MduForCa/enaco_retail/actions/workflows/test.yml/badge.svg)
+![Build](https://github.com/MduForCa/enaco_retail/actions/workflows/build.yml/badge.svg)
+
+# ENACO Retail
+
 ENACO Retail is a retail point-of-sale and inventory management application designed for small and medium-sized retail businesses.
 
 The project is being developed as a practical full-stack software engineering project, covering business requirements, application development, database design, API development, frontend development, containerization, and version control.
