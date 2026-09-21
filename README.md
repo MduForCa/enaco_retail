@@ -1,160 +1,56 @@
 # ENACO Retail
 
-![Tests](https://github.com/MduForCa/enaco_retail/actions/workflows/test.yml/badge.svg)
-![Build](https://github.com/MduForCa/enaco_retail/actions/workflows/build.yml/badge.svg)
+[![Tests](https://github.com/MduForCa/enaco_retail/actions/workflows/test.yml/badge.svg)](https://github.com/MduForCa/enaco_retail/actions/workflows/test.yml)
+[![Build](https://github.com/MduForCa/enaco_retail/actions/workflows/build.yml/badge.svg)](https://github.com/MduForCa/enaco_retail/actions/workflows/build.yml)
 
-# ENACO Retail
+A retail point-of-sale and inventory management application for small and medium-sized retail businesses.
 
-ENACO Retail is a retail point-of-sale and inventory management application designed for small and medium-sized retail businesses.
+Built as a practical full-stack engineering project — covering requirements, API design, database modelling, frontend development, automated testing, containerization, and CI/CD.
 
-The project is being developed as a practical full-stack software engineering project, covering business requirements, application development, database design, API development, frontend development, containerization, and version control.
+---
 
-## Technology Stack
+## Tech Stack
 
-### Backend
+| Layer | Technologies |
+| :--- | :--- |
+| **Backend** | Python · Django · Django REST Framework |
+| **Database** | PostgreSQL |
+| **Frontend** | React · TypeScript · Vite |
+| **DevOps** | Docker · Docker Compose · GitHub Actions |
 
-* Python
-* Django
-* Django REST Framework
-* PostgreSQL
+---
 
-### Frontend
+## Architecture
 
-* React
-* TypeScript
-* Vite
+All services run in Docker containers via Docker Compose.
 
-### Infrastructure & Development
+---
 
-* Docker
-* Docker Compose
-* Git
-* GitHub
+## Features
 
-## Current Features
+- Product management (create, list, retrieve)
+- Product SKU and barcode identification
+- Inventory management with stock transactions
+- Stock receipts and sales processing
+- Automatic stock reduction after sales
+- REST API with serialization and validation
+- PostgreSQL persistence with referential integrity
+- Automated tests (pytest) with 35 passing tests
+- CI/CD pipeline (GitHub Actions)
+- Dockerized backend and database environment
 
-* Product management
-* Product SKU and barcode identification
-* Inventory management
-* Stock receipts
-* Sales processing
-* Automatic stock reduction after sales
-* REST API
-* PostgreSQL persistence
-* Dockerized backend and database environment
+---
 
-## Application Architecture
+## Getting Started
 
-```text
-React / TypeScript Frontend
-            │
-            │ HTTP / REST API
-            ▼
-     Django REST Framework
-            │
-            ▼
-        PostgreSQL
-```
+### Prerequisites
 
-The backend and PostgreSQL database run in Docker containers. The React frontend currently runs separately during development.
+- Docker and Docker Compose
+- Node.js 20+ (for local frontend development)
 
-## Project Structure
-
-```text
-enaco_retail/
-│
-├── backend/
-│   ├── products/
-│   ├── inventory/
-│   ├── sales/
-│   ├── manage.py
-│   ├── Dockerfile
-│   └── ...
-│
-├── frontend/
-│   ├── src/
-│   ├── package.json
-│   └── ...
-│
-├── compose.yaml
-├── .gitignore
-└── README.md
-```
-
-## Running the Backend
-
-Clone the repository:
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/MduForCa/enaco_retail.git
 cd enaco_retail
-```
 
-Create the environment configuration required by Docker Compose.
-
-The project expects database configuration similar to:
-
-```text
-DB_NAME=enaco_retail
-DB_USER=...
-DB_PASSWORD=...
-```
-
-Start the backend and PostgreSQL:
-
-```bash
-docker compose up --build
-```
-
-The Django API will be available at:
-
-```text
-http://localhost:8000/
-```
-
-## Frontend
-
-From the frontend directory:
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-The Vite development server will provide the frontend address in the terminal.
-
-## Development Approach
-
-The project is being developed incrementally around real retail workflows rather than as a collection of isolated coding exercises.
-
-The development process includes:
-
-* Translating business requirements into application functionality
-* Designing database models and relationships
-* Implementing business logic in the backend
-* Exposing functionality through REST APIs
-* Building the user interface with React
-* Containerizing application infrastructure
-* Using Git for source control and change tracking
-* Testing functionality throughout development
-
-## Planned Development
-
-Future areas include:
-
-* Cashier-focused POS interface
-* Barcode-based product entry
-* Cart and checkout workflow
-* Cash, card and mobile-money payment handling
-* Supervisor authorization for selected POS actions
-* Sales reporting and analytics
-* User and role management
-* Improved deployment and production configuration
-* Automated testing and CI/CD
-
-## Status
-
-**Active development**
-
-ENACO Retail is a portfolio and product-development project and is evolving as functionality and engineering practices are added.
