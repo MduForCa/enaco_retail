@@ -1,8 +1,164 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import type { FormEvent } from 'react'
+import { apiGet, apiPost, apiDelete } from './api/client'
 import './App.css'
+
+type Product = {
+  id: number
+  name: string
+  sku: string
+  barcode: string | null
+  selling_price: string
+  created_at: string
+  updated_at: string
+}
+
+type NewProduct = {
+  name: string
+  sku: string
+  barcode: string
+  selling_price: string
+}
+
+const emptyForm: NewProduct = {
+  name: '',
+  sku: '',
+  barcode: '',
+  selling_price: '',
+}
 
 function App() {
   const [searchTerm, setSearchTerm] = useState('')
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const [form, setForm] = useState<NewProduct>(emptyForm)
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+
+  const [deletingSku, setDeletingSku] = useState<string | null>(null)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+
+  async function loadProducts() {
+    setLoading(true)
+
+    try {
+      const data = await apiGet<Product[]>('/products/')
+      setProducts(data)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load products')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadProducts()
+  }, [])
+
+  async function handleSearch() {
+    const term = searchTerm.trim()
+
+    if (!term) {
+      await loadProducts()
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const product = await apiGet<Product>(
+        `/products/${encodeURIComponent(term)}/`
+      )
+
+      setProducts([product])
+    } catch (err) {
+      setProducts([])
+      setError('Product not found')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleCreate(event: FormEvent) {
+    event.preventDefault()
+    setCreating(true)
+    setCreateError(null)
+
+    const payload: Record<string, string> = {
+      name: form.name,
+      sku: form.sku,
+      selling_price: form.selling_price,
+    }
+
+    if (form.barcode.trim() !== '') {
+      payload.barcode = form.barcode
+    }
+
+    try {
+      await apiPost<Product>('/products/', payload)
+      setForm(emptyForm)
+      await loadProducts()
+    } catch (err) {
+      setCreateError(
+        err instanceof Error ? err.message : 'Failed to create product'
+      )
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  async function handleDelete(sku: string) {
+    if (!window.confirm(`Delete product ${sku}?`)) return
+
+    setDeletingSku(sku)
+
+    try {
+      await apiDelete(`/products/${encodeURIComponent(sku)}/`)
+      await loadProducts()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete product')
+    } finally {
+      setDeletingSku(null)
+    }
+  }
+
+  async function handleDeleteAllTest() {
+    const testProducts = products.filter((p) => p.sku.startsWith('TEST-'))
+
+    if (testProducts.length === 0) {
+      window.alert('No TEST-* products to delete.')
+      return
+    }
+
+    if (
+      !window.confirm(
+        `Delete ${testProducts.length} TEST-* product(s)? This cannot be undone.`
+      )
+    ) {
+      return
+    }
+
+    setBulkDeleting(true)
+    setError(null)
+
+    try {
+      for (const p of testProducts) {
+        try {
+         await apiDelete(`/products/sku/${encodeURIComponent(sku)}/`)
+        } catch (err) {
+          console.error(`Failed to delete ${p.sku}:`, err)
+        }
+      }
+
+      await loadProducts()
+    } finally {
+      setBulkDeleting(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
@@ -11,7 +167,6 @@ function App() {
       ========================================================= */}
       <header className="h-16 border-b-2 border-slate-700 bg-white">
         <div className="flex h-full items-center justify-between px-6">
-          {/* Brand */}
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white">
               E
@@ -28,14 +183,16 @@ function App() {
             </div>
           </div>
 
-          {/* Register / Cashier */}
           <div className="flex items-center gap-8">
             <div className="text-center">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                 Register
               </p>
 
-              <p className="text-sm font-bold">
+              <p
+                className="text-sm font-bold"
+                data-testid="register-number"
+              >
                 01
               </p>
             </div>
@@ -47,7 +204,10 @@ function App() {
                 Cashier
               </p>
 
-              <p className="text-sm font-bold">
+              <p
+                className="text-sm font-bold"
+                data-testid="cashier-name"
+              >
                 Cashier
               </p>
             </div>
@@ -55,20 +215,14 @@ function App() {
         </div>
       </header>
 
-      {/* =========================================================
-          MAIN POS WORKSPACE
-      ========================================================= */}
       <main className="grid min-h-[calc(100vh-4rem)] grid-cols-[minmax(0,1fr)_400px]">
-
         {/* =======================================================
             LEFT — PRODUCT WORKSPACE
         ======================================================= */}
         <section className="min-w-0 border-r-2 border-slate-700 bg-white">
           <div className="mx-auto max-w-6xl px-10 py-10">
 
-            {/* =================================================
-                FIND PRODUCT
-            ================================================= */}
+            {/* FIND PRODUCT */}
             <section className="rounded-xl border-2 border-slate-500 bg-white p-6 shadow-sm">
               <div className="mb-4">
                 <h2 className="text-lg font-bold">
@@ -91,6 +245,7 @@ function App() {
 
                 <button
                   type="button"
+                  onClick={handleSearch}
                   className="h-12 rounded-lg border-2 border-blue-700 bg-blue-600 px-7 text-sm font-semibold text-white transition hover:bg-blue-700"
                 >
                   Search
@@ -98,83 +253,119 @@ function App() {
               </div>
             </section>
 
-            {/* =================================================
-                QUICK PRODUCTS
-            ================================================= */}
+            {/* ADD PRODUCT */}
             <section className="mt-8 rounded-xl border-2 border-slate-500 bg-white p-6 shadow-sm">
               <div className="mb-5">
                 <h2 className="text-base font-bold">
-                  Quick Products
+                  Add Product
                 </h2>
 
                 <p className="mt-1 text-xs text-slate-400">
-                  Frequently sold items
+                  Create a new product in the catalogue
                 </p>
               </div>
 
-              <div className="grid grid-cols-4 gap-4">
+              <form
+                onSubmit={handleCreate}
+                className="grid grid-cols-2 gap-4"
+              >
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold text-slate-500">
+                    Name
+                  </span>
 
-                <button
-                  type="button"
-                  className="rounded-lg border-2 border-slate-400 bg-slate-50 p-4 text-left transition hover:border-blue-500 hover:bg-blue-50"
-                >
-                  <p className="text-sm font-bold">
-                    Coca-Cola
-                  </p>
+                  <input
+                    type="text"
+                    required
+                    value={form.name}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        name: e.target.value,
+                      })
+                    }
+                    className="h-11 rounded-lg border-2 border-slate-400 px-3 text-sm outline-none focus:border-blue-600"
+                  />
+                </label>
 
-                  <p className="mt-2 text-xs font-semibold text-slate-500">
-                    E10.00
-                  </p>
-                </button>
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold text-slate-500">
+                    SKU
+                  </span>
 
-                <button
-                  type="button"
-                  className="rounded-lg border-2 border-slate-400 bg-slate-50 p-4 text-left transition hover:border-blue-500 hover:bg-blue-50"
-                >
-                  <p className="text-sm font-bold">
-                    Bread
-                  </p>
+                  <input
+                    type="text"
+                    required
+                    value={form.sku}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        sku: e.target.value,
+                      })
+                    }
+                    className="h-11 rounded-lg border-2 border-slate-400 px-3 text-sm outline-none focus:border-blue-600"
+                  />
+                </label>
 
-                  <p className="mt-2 text-xs font-semibold text-slate-500">
-                    E18.00
-                  </p>
-                </button>
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold text-slate-500">
+                    Barcode (optional)
+                  </span>
 
-                <button
-                  type="button"
-                  className="rounded-lg border-2 border-slate-400 bg-slate-50 p-4 text-left transition hover:border-blue-500 hover:bg-blue-50"
-                >
-                  <p className="text-sm font-bold">
-                    Milk
-                  </p>
+                  <input
+                    type="text"
+                    value={form.barcode}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        barcode: e.target.value,
+                      })
+                    }
+                    className="h-11 rounded-lg border-2 border-slate-400 px-3 text-sm outline-none focus:border-blue-600"
+                  />
+                </label>
 
-                  <p className="mt-2 text-xs font-semibold text-slate-500">
-                    E15.00
-                  </p>
-                </button>
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold text-slate-500">
+                    Selling Price
+                  </span>
 
-                <button
-                  type="button"
-                  className="rounded-lg border-2 border-slate-400 bg-slate-50 p-4 text-left transition hover:border-blue-500 hover:bg-blue-50"
-                >
-                  <p className="text-sm font-bold">
-                    Sugar
-                  </p>
+                  <input
+                    type="text"
+                    required
+                    inputMode="decimal"
+                    placeholder="e.g. 10.00"
+                    value={form.selling_price}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        selling_price: e.target.value,
+                      })
+                    }
+                    className="h-11 rounded-lg border-2 border-slate-400 px-3 text-sm outline-none focus:border-blue-600"
+                  />
+                </label>
 
-                  <p className="mt-2 text-xs font-semibold text-slate-500">
-                    E22.00
-                  </p>
-                </button>
+                <div className="col-span-2 flex items-center gap-4">
+                  <button
+                    type="submit"
+                    disabled={creating}
+                    className="h-11 rounded-lg border-2 border-blue-700 bg-blue-600 px-7 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {creating ? 'Creating…' : 'Create Product'}
+                  </button>
 
-              </div>
+                  {createError && (
+                    <p className="text-sm text-red-600">
+                      Failed to create product
+                    </p>
+                  )}
+                </div>
+              </form>
             </section>
 
-            {/* =================================================
-                PRODUCTS
-            ================================================= */}
+            {/* PRODUCTS */}
             <section className="mt-8 rounded-xl border-2 border-slate-500 bg-white shadow-sm">
-
-              {/* Products Header */}
               <div className="flex items-center justify-between border-b-2 border-slate-500 px-6 py-5">
                 <div>
                   <h2 className="text-base font-bold">
@@ -186,93 +377,87 @@ function App() {
                   </p>
                 </div>
 
-                <span className="rounded-full border-2 border-slate-400 px-3 py-1 text-xs font-semibold text-slate-600">
-                  3 products
-                </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    data-testid="delete-all-test-products"
+                    onClick={handleDeleteAllTest}
+                    disabled={bulkDeleting || loading}
+                    className="rounded-lg border-2 border-red-400 bg-white px-3 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                  >
+                    {bulkDeleting ? 'Deleting…' : 'Delete TEST-*'}
+                  </button>
+
+                  <span className="rounded-full border-2 border-slate-400 px-3 py-1 text-xs font-semibold text-slate-600">
+                    {loading
+                      ? 'Loading…'
+                      : `${products.length} products`}
+                  </span>
+                </div>
               </div>
 
-              {/* Product List */}
-              <div className="divide-y divide-slate-200">
+              {error && (
+                <p className="px-6 py-5 text-sm text-red-600">
+                  {error}
+                </p>
+              )}
 
-                {/* Product 1 */}
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between px-6 py-5 text-left transition hover:bg-slate-50"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-slate-400 bg-slate-100 text-sm font-bold text-slate-700">
-                      C
-                    </div>
-
-                    <div>
-                      <p className="text-sm font-bold">
-                        Coca-Cola 500ml
-                      </p>
-
-                      <p className="mt-1 text-xs text-slate-400">
-                        COKE-500
-                      </p>
-                    </div>
-                  </div>
-
-                  <p className="text-sm font-bold">
-                    E10.00
+              {!loading &&
+                !error &&
+                products.length === 0 && (
+                  <p className="px-6 py-5 text-sm text-slate-400">
+                    No products yet. Add one above.
                   </p>
-                </button>
+                )}
 
-                {/* Product 2 */}
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between px-6 py-5 text-left transition hover:bg-slate-50"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-slate-400 bg-slate-100 text-sm font-bold text-slate-700">
-                      B
-                    </div>
+              {!loading &&
+                !error &&
+                products.length > 0 && (
+                  <div className="divide-y divide-slate-200">
+                    {products.map((product) => (
+                      <div
+                        key={product.id}
+                        data-testid={`product-row-${product.sku}`}
+                        className="flex w-full items-center justify-between px-6 py-5"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-slate-400 bg-slate-100 text-sm font-bold text-slate-700">
+                            {product.name.charAt(0)}
+                          </div>
 
-                    <div>
-                      <p className="text-sm font-bold">
-                        Bread 700g
-                      </p>
+                          <div>
+                            <p className="text-sm font-bold">
+                              {product.name}
+                            </p>
 
-                      <p className="mt-1 text-xs text-slate-400">
-                        BREAD-700
-                      </p>
-                    </div>
+                            <p className="mt-1 text-xs text-slate-400">
+                              {product.sku}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          <p className="text-sm font-bold">
+                            E{Number(product.selling_price).toFixed(2)}
+                          </p>
+
+                          <button
+                            type="button"
+                            data-testid={`delete-product-${product.sku}`}
+                            onClick={() => handleDelete(product.sku)}
+                            disabled={deletingSku === product.sku}
+                            title={`Delete ${product.sku}`}
+                            className="h-9 rounded-lg border-2 border-red-400 bg-white px-4 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                          >
+                            {deletingSku === product.sku
+                              ? 'Deleting…'
+                              : 'Delete'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-
-                  <p className="text-sm font-bold">
-                    E18.00
-                  </p>
-                </button>
-
-                {/* Product 3 */}
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between px-6 py-5 text-left transition hover:bg-slate-50"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-slate-400 bg-slate-100 text-sm font-bold text-slate-700">
-                      M
-                    </div>
-
-                    <div>
-                      <p className="text-sm font-bold">
-                        Milk 1L
-                      </p>
-
-                      <p className="mt-1 text-xs text-slate-400">
-                        MILK-1L
-                      </p>
-                    </div>
-                  </div>
-
-                  <p className="text-sm font-bold">
-                    E15.00
-                  </p>
-                </button>
-
-              </div>
+                )}
             </section>
 
           </div>
@@ -282,10 +467,6 @@ function App() {
             RIGHT — CURRENT SALE
         ======================================================= */}
         <aside className="flex min-h-0 flex-col bg-slate-100">
-
-          {/* =====================================================
-              CURRENT SALE HEADER
-          ===================================================== */}
           <div className="border-b-2 border-slate-700 bg-white px-6 py-5">
             <h2 className="text-base font-bold">
               Current Sale
@@ -296,65 +477,21 @@ function App() {
             </p>
           </div>
 
-          {/* =====================================================
-              SALE ITEMS
-          ===================================================== */}
           <div className="flex-1 overflow-auto px-5 py-5">
-
-            {/* Item 1 */}
-            <div className="rounded-lg border-2 border-slate-400 bg-white p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm font-bold">
-                    Coca-Cola 500ml
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    2 × E10.00
-                  </p>
-                </div>
-
-                <p className="text-sm font-bold">
-                  E20.00
-                </p>
-              </div>
-            </div>
-
-            {/* Item 2 */}
-            <div className="mt-3 rounded-lg border-2 border-slate-400 bg-white p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm font-bold">
-                    Bread 700g
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    1 × E18.00
-                  </p>
-                </div>
-
-                <p className="text-sm font-bold">
-                  E18.00
-                </p>
-              </div>
-            </div>
-
+            <p className="text-sm text-slate-400">
+              No items yet.
+            </p>
           </div>
 
-          {/* =====================================================
-              SALE SUMMARY
-          ===================================================== */}
           <div className="border-t-2 border-slate-700 bg-white">
-
             <div className="flex items-center justify-between px-6 py-5">
-
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                   Items
                 </p>
 
                 <p className="mt-1 text-lg font-bold">
-                  3
+                  0
                 </p>
               </div>
 
@@ -364,19 +501,13 @@ function App() {
                 </p>
 
                 <p className="mt-1 text-3xl font-bold">
-                  E38.00
+                  E0.00
                 </p>
               </div>
-
             </div>
 
-            {/* =================================================
-                ACTIONS
-            ================================================= */}
             <div className="border-t-2 border-slate-500 p-5">
-
               <div className="grid grid-cols-2 gap-3">
-
                 <button
                   type="button"
                   className="h-11 rounded-lg border-2 border-slate-500 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
@@ -390,7 +521,6 @@ function App() {
                 >
                   Cancel
                 </button>
-
               </div>
 
               <button
@@ -399,9 +529,7 @@ function App() {
               >
                 Process Sale
               </button>
-
             </div>
-
           </div>
         </aside>
 
