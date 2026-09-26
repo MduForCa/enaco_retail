@@ -25,7 +25,7 @@ urlpatterns = [
 
 
     path(
-        "sku/<str:sku>/",
+        "<str:sku>/",
         ProductBySkuView.as_view(),
         name="product-by-sku"
     ),

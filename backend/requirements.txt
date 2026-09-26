@@ -2,6 +2,7 @@ asgiref==3.12.1
 colorama==0.4.6
 coverage==7.16.1
 Django==6.1.1
+django-cors-headers==4.9.0
 djangorestframework==3.18.1
 iniconfig==2.3.0
 packaging==26.3
